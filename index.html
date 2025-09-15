@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ImobiFlex - Sistema Imobiliário</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/jspdf"></script>
+  <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
+</head>
+<body class="bg-gray-100 text-gray-900">
+  <header class="bg-blue-700 text-white p-4 flex justify-between items-center">
+    <h1 class="text-xl font-bold">ImobiFlex</h1>
+    <nav>
+      <ul class="flex gap-4">
+        <li><a href="#dashboard" class="hover:underline">Dashboard</a></li>
+        <li><a href="#imoveis" class="hover:underline">Imóveis</a></li>
+        <li><a href="#clientes" class="hover:underline">Clientes</a></li>
+        <li><a href="#funcionarios" class="hover:underline">Funcionários</a></li>
+        <li><a href="#visitas" class="hover:underline">Visitas</a></li>
+        <li><a href="#contratos" class="hover:underline">Contratos</a></li>
+      </ul>
+    </nav>
+  </header>
+
+  <main class="p-6">
+    <section id="dashboard">
+      <h2 class="text-lg font-semibold mb-2">Dashboard</h2>
+      <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <div class="bg-white shadow p-4 rounded">Total de Imóveis: <span id="countImoveis">0</span></div>
+        <div class="bg-white shadow p-4 rounded">Clientes: <span id="countClientes">0</span></div>
+        <div class="bg-white shadow p-4 rounded">Funcionários: <span id="countFuncionarios">0</span></div>
+        <div class="bg-white shadow p-4 rounded">Visitas Agendadas: <span id="countVisitas">0</span></div>
+      </div>
+    </section>
+
+    <section id="imoveis" class="mt-8">
+      <h2 class="text-lg font-semibold mb-2">Cadastro de Imóveis</h2>
+      <form id="formImovel" class="bg-white shadow p-4 rounded mb-4">
+        <input type="text" placeholder="Código do Imóvel" id="codigo" class="border p-2 w-full mb-2" required />
+        <input type="text" placeholder="Endereço" id="endereco" class="border p-2 w-full mb-2" required />
+        <input type="number" placeholder="Valor" id="valor" class="border p-2 w-full mb-2" required />
+        <select id="tipo" class="border p-2 w-full mb-2">
+          <option>Venda</option>
+          <option>Locação</option>
+          <option>Permuta</option>
+        </select>
+        <button type="submit" class="bg-blue-600 text-white px-4 py-2 rounded">Salvar</button>
+      </form>
+      <ul id="listaImoveis" class="space-y-2"></ul>
+    </section>
+
+    <section id="clientes" class="mt-8">
+      <h2 class="text-lg font-semibold mb-2">Cadastro de Clientes</h2>
+      <form id="formCliente" class="bg-white shadow p-4 rounded mb-4">
+        <input type="text" placeholder="Nome" id="nomeCliente" class="border p-2 w-full mb-2" required />
+        <input type="email" placeholder="Email" id="emailCliente" class="border p-2 w-full mb-2" required />
+        <button type="submit" class="bg-green-600 text-white px-4 py-2 rounded">Salvar</button>
+      </form>
+      <ul id="listaClientes" class="space-y-2"></ul>
+    </section>
+
+    <section id="funcionarios" class="mt-8">
+      <h2 class="text-lg font-semibold mb-2">Cadastro de Funcionários</h2>
+      <form id="formFuncionario" class="bg-white shadow p-4 rounded mb-4">
+        <input type="text" placeholder="Nome" id="nomeFuncionario" class="border p-2 w-full mb-2" required />
+        <select id="roleFuncionario" class="border p-2 w-full mb-2">
+          <option>Administrador</option>
+          <option>Corretor</option>
+          <option>Secretaria</option>
+        </select>
+        <button type="submit" class="bg-purple-600 text-white px-4 py-2 rounded">Salvar</button>
+      </form>
+      <ul id="listaFuncionarios" class="space-y-2"></ul>
+    </section>
+
+    <section id="visitas" class="mt-8">
+      <h2 class="text-lg font-semibold mb-2">Agendamento de Visitas</h2>
+      <form id="formVisita" class="bg-white shadow p-4 rounded mb-4">
+        <input type="text" placeholder="Imóvel (Código)" id="visitaImovel" class="border p-2 w-full mb-2" required />
+        <input type="text" placeholder="Cliente (Nome)" id="visitaCliente" class="border p-2 w-full mb-2" required />
+        <input type="datetime-local" id="visitaData" class="border p-2 w-full mb-2" required />
+        <button type="submit" class="bg-yellow-600 text-white px-4 py-2 rounded">Agendar</button>
+      </form>
+      <ul id="listaVisitas" class="space-y-2"></ul>
+    </section>
+
+    <section id="contratos" class="mt-8">
+      <h2 class="text-lg font-semibold mb-2">Gerador de Contratos</h2>
+      <button id="btnContrato" class="bg-red-600 text-white px-4 py-2 rounded">Gerar Contrato PDF</button>
+    </section>
+  </main>
+
+  <script>
+    const imoveis = [];
+    const clientes = [];
+    const funcionarios = [];
+    const visitas = [];
+
+    document.getElementById('formImovel').addEventListener('submit', e => {
+      e.preventDefault();
+      const imovel = {
+        codigo: document.getElementById('codigo').value,
+        endereco: document.getElementById('endereco').value,
+        valor: document.getElementById('valor').value,
+        tipo: document.getElementById('tipo').value
+      };
+      imoveis.push(imovel);
+      renderImoveis();
+    });
+
+    function renderImoveis() {
+      const lista = document.getElementById('listaImoveis');
+      lista.innerHTML = '';
+      imoveis.forEach(i => {
+        const li = document.createElement('li');
+        li.textContent = `${i.codigo} - ${i.endereco} - ${i.tipo} - R$${i.valor}`;
+        lista.appendChild(li);
+      });
+      document.getElementById('countImoveis').textContent = imoveis.length;
+    }
+
+    document.getElementById('formCliente').addEventListener('submit', e => {
+      e.preventDefault();
+      const cliente = {
+        nome: document.getElementById('nomeCliente').value,
+        email: document.getElementById('emailCliente').value
+      };
+      clientes.push(cliente);
+      renderClientes();
+    });
+
+    function renderClientes() {
+      const lista = document.getElementById('listaClientes');
+      lista.innerHTML = '';
+      clientes.forEach(c => {
+        const li = document.createElement('li');
+        li.textContent = `${c.nome} - ${c.email}`;
+        lista.appendChild(li);
+      });
+      document.getElementById('countClientes').textContent = clientes.length;
+    }
+
+    document.getElementById('formFuncionario').addEventListener('submit', e => {
+      e.preventDefault();
+      const funcionario = {
+        nome: document.getElementById('nomeFuncionario').value,
+        role: document.getElementById('roleFuncionario').value
+      };
+      funcionarios.push(funcionario);
+      renderFuncionarios();
+    });
+
+    function renderFuncionarios() {
+      const lista = document.getElementById('listaFuncionarios');
+      lista.innerHTML = '';
+      funcionarios.forEach(f => {
+        const li = document.createElement('li');
+        li.textContent = `${f.nome} - ${f.role}`;
+        lista.appendChild(li);
+      });
+      document.getElementById('countFuncionarios').textContent = funcionarios.length;
+    }
+
+    document.getElementById('formVisita').addEventListener('submit', e => {
+      e.preventDefault();
+      const visita = {
+        imovel: document.getElementById('visitaImovel').value,
+        cliente: document.getElementById('visitaCliente').value,
+        data: document.getElementById('visitaData').value
+      };
+      visitas.push(visita);
+      renderVisitas();
+    });
+
+    function renderVisitas() {
+      const lista = document.getElementById('listaVisitas');
+      lista.innerHTML = '';
+      visitas.forEach(v => {
+        const li = document.createElement('li');
+        li.textContent = `Imóvel: ${v.imovel} - Cliente: ${v.cliente} - Data: ${v.data}`;
+        lista.appendChild(li);
+      });
+      document.getElementById('countVisitas').textContent = visitas.length;
+    }
+
+    document.getElementById('btnContrato').addEventListener('click', () => {
+      const doc = new jsPDF();
+      doc.text('Contrato Gerado - ImobiFlex', 10, 10);
+      doc.save('contrato.pdf');
+    });
+  </script>
+</body>
+</html>
